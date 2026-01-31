@@ -15,9 +15,6 @@ export async function getWikiContent(url: string): Promise<SuccessResponse | Err
   let parsedUrl;
   try {
     parsedUrl = new URL(url);
-    if (!parsedUrl.hostname.endsWith('fandom.com')) {
-      return { success: false, error: 'Invalid URL. Hostname must be a fandom.com domain.' };
-    }
   } catch (error) {
     return { success: false, error: 'Invalid URL format. Please enter a full URL including https://' };
   }
