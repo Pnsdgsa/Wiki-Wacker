@@ -1,8 +1,8 @@
 import type {Metadata} from 'next';
 
 export const metadata: Metadata = {
-  title: 'Wiki Wacker',
-  description: 'A Fandom.com wiki content extractor',
+  title: 'Content Wacker',
+  description: 'An all-purpose content extractor',
 };
 
 export default function RootLayout({
