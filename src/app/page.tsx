@@ -1,15 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function Home() {
-  const router = useRouter();
   const [url, setUrl] = useState("https://growagarden.fandom.com/wiki/Crops");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    router.push(`/web?url=${encodeURIComponent(url)}`);
+    window.location.href = `/web?url=${encodeURIComponent(url)}`;
   };
 
   return (

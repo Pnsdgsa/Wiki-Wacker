@@ -7,22 +7,15 @@ import { getWikiContent } from "@/app/actions";
 export default function WebPage() {
   const searchParams = useSearchParams();
   const url = searchParams.get("url");
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // This object will hold the blob URL created in the current effect run.
-    const currentBlobUrlRef = { current: null as string | null };
+    if (!url) {
+      window.location.href = "/";
+      return;
+    }
 
-    async function processUrl() {
-      if (!url) {
-        setError("No URL provided.");
-        return;
-      }
-
-      setError(null);
-      setBlobUrl(null);
-
+    const fetchAndRedirect = async () => {
       try {
         const result = await getWikiContent(url);
         if (result.success) {
@@ -34,20 +27,13 @@ export default function WebPage() {
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <title>${result.title}</title>
               <style>
-                body { font-family: sans-serif; padding: 1rem 2rem; margin: 0 auto; max-width: 900px; color: #222; line-height: 1.6; }
-                img { max-width: 100%; height: auto; border-radius: 8px; }
-                a { color: #0645ad; text-decoration: none; }
-                a:hover { text-decoration: underline; }
-                table { border-collapse: collapse; width: 100%; margin: 1.5rem 0; font-size: 0.9em; }
+                body { font-family: sans-serif; line-height: 1.6; margin: 0 auto; max-width: 900px; padding: 1rem 2rem; }
+                img { height: auto; max-width: 100%; }
+                a { color: #0645ad; }
+                table { border-collapse: collapse; font-size: 0.9em; margin: 1.5rem 0; width: 100%; }
                 th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
                 th { background-color: #f2f2f2; }
-                pre, code { background-color: #f4f4f4; padding: 2px 4px; border-radius: 4px; font-family: monospace; }
-                pre { padding: 1rem; overflow-x: auto; }
-                .mw-parser-output .toc { border: 1px solid #a2a9b1; background-color: #f8f9fa; padding: 1em; display: table; margin-bottom: 1em; }
-                h1, h2, h3, h4, h5, h6 { border-bottom: 1px solid #eee; padding-bottom: 0.3em; margin-top: 1.5em; margin-bottom: 0.5em; }
-                h1 { font-size: 2.2em; }
-                h2 { font-size: 1.8em; }
-                h3 { font-size: 1.5em; }
+                .mw-parser-output .toc { background-color: #f8f9fa; border: 1px solid #a2a9b1; display: table; margin-bottom: 1em; padding: 1em; }
               </style>
             </head>
             <body>
@@ -55,45 +41,30 @@ export default function WebPage() {
             </body>
             </html>
           `;
-          
-          const htmlBlob = new Blob([fullHtml], { type: 'text/html' });
-          const newBlobUrl = URL.createObjectURL(htmlBlob);
-          currentBlobUrlRef.current = newBlobUrl;
-          setBlobUrl(newBlobUrl);
-
+          const blob = new Blob([fullHtml], { type: "text/html" });
+          const blobUrl = URL.createObjectURL(blob);
+          window.location.replace(blobUrl);
         } else {
           setError(result.error);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "An unexpected error occurred.");
       }
-    }
-
-    processUrl();
-
-    // Cleanup function to revoke the object URL when the component unmounts or the url changes
-    return () => {
-      if (currentBlobUrlRef.current) {
-        URL.revokeObjectURL(currentBlobUrlRef.current);
-      }
     };
+
+    fetchAndRedirect();
   }, [url]);
 
   if (error) {
     return (
-      <div style={{ padding: "2rem" }}>
+      <div style={{ padding: "2rem", fontFamily: 'sans-serif', color: 'red' }}>
         <h1>Error</h1>
-        <p style={{ color: "red" }}>{error}</p>
+        <p>{error}</p>
         <a href="/">Go Back</a>
       </div>
     );
   }
-  
-  if (blobUrl) {
-    return (
-        <iframe src={blobUrl} style={{ width: '100%', height: '100vh', border: 'none' }} title="Wiki Content" />
-    );
-  }
 
+  // This page is just for processing, so we show nothing.
   return null;
 }
