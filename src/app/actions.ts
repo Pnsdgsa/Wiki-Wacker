@@ -57,12 +57,16 @@ export async function getWikiContent(url: string): Promise<SuccessResponse | Err
         // Handle lazy-loaded images from Fandom
         content = content.replace(/<img[^>]*data-src="([^"]+)"[^>]*>/g, (match: string, dataSrc: string) => {
             let newImgTag = match;
-            // Replace src with data-src
-            newImgTag = newImgTag.replace(/src="[^"]*"/, `src="${dataSrc}"`);
+            // If src exists, replace it. If not, add it.
+            if (/src="[^"]*"/.test(newImgTag)) {
+                newImgTag = newImgTag.replace(/src="[^"]*"/, `src="${dataSrc}"`);
+            } else {
+                newImgTag = newImgTag.replace('<img', `<img src="${dataSrc}"`);
+            }
             // Remove lazyload class
             newImgTag = newImgTag.replace(/\s*class="[^"]*lazyload[^"]*"/i, (classMatch: string) => {
                 const newClass = classMatch.replace(/lazyload/i, '').replace(/\s{2,}/, ' ').trim();
-                return newClass === 'class=""' ? '' : ` class="${newClass}"`;
+                return newClass === 'class=""' ? '' : newClass;
             });
             // Remove data attributes
             newImgTag = newImgTag.replace(/data-src="[^"]*"/, '');
@@ -123,6 +127,20 @@ export async function getWikiContent(url: string): Promise<SuccessResponse | Err
         // Remove script and style tags for a cleaner view
         content = content.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
         content = content.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+        
+        // Handle lazy-loaded images
+        content = content.replace(/<img[^>]*data-src="([^"]+)"[^>]*>/g, (match: string, dataSrc: string) => {
+            let newImgTag = match;
+            // If src exists, replace it. If not, add it.
+            if (/src="[^"]*"/.test(newImgTag)) {
+                newImgTag = newImgTag.replace(/src="[^"]*"/, `src="${dataSrc}"`);
+            } else {
+                newImgTag = newImgTag.replace('<img', `<img src="${dataSrc}"`);
+            }
+            // Remove data-src attribute
+            newImgTag = newImgTag.replace(/data-src="[^"]*"/, '');
+            return newImgTag;
+        });
         
         // Make relative links absolute
         const baseUrl = parsedUrl.origin;
