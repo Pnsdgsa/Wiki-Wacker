@@ -7,7 +7,7 @@ export default function Home() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    window.location.href = `/web?url=${encodeURIComponent(url)}`;
+    window.location.href = `/api/raw?url=${encodeURIComponent(url)}`;
   };
 
   return (
