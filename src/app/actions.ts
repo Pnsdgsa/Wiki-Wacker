@@ -12,8 +12,9 @@ type ErrorResponse = {
 };
 
 export async function getWikiContent(url: string): Promise<SuccessResponse | ErrorResponse> {
+  let parsedUrl;
   try {
-    const parsedUrl = new URL(url);
+    parsedUrl = new URL(url);
     if (!parsedUrl.hostname.endsWith('fandom.com')) {
       return { success: false, error: 'Invalid URL. Hostname must be a fandom.com domain.' };
     }
@@ -21,87 +22,48 @@ export async function getWikiContent(url: string): Promise<SuccessResponse | Err
     return { success: false, error: 'Invalid URL format. Please enter a full URL including https://' };
   }
 
+  const pageName = url.includes('/wiki/') ? url.substring(url.lastIndexOf('/wiki/') + 6) : null;
+  if (!pageName) {
+    return { success: false, error: 'Could not determine page name from URL. Make sure it contains "/wiki/".' };
+  }
+
+  const apiUrl = `${parsedUrl.origin}/api.php?action=parse&page=${encodeURIComponent(pageName)}&format=json&prop=text&formatversion=2`;
+
   try {
-    const response = await fetch(url, {
+    const response = await fetch(apiUrl, {
       headers: {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'Sec-Ch-Ua': '"Google Chrome";v="125", "Chromium";v="125", "Not.A/Brand";v="24"',
-        'Sec-Ch-Ua-Mobile': '?0',
-        'Sec-Ch-Ua-Platform': '"Windows"',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Upgrade-Insecure-Requests': '1',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
+        // A User-Agent is required by the MediaWiki API policy.
+        'User-Agent': 'WikiWacker/1.0 (https://studio.firebase.google.com) using Next.js fetch'
       },
-      // Disable cache to get fresh content
       cache: 'no-store',
     });
 
     if (!response.ok) {
-      return { success: false, error: `Failed to fetch page. Server responded with status: ${response.status}` };
+      return { success: false, error: `Failed to fetch from API. Server responded with status: ${response.status}` };
     }
 
-    const html = await response.text();
+    const data = await response.json();
 
-    // Extract page title
-    const titleMatch = html.match(/<title>(.*?)<\/title>/);
-    const pageTitle = titleMatch ? titleMatch[1].split(' | ')[0] : 'Content';
-
-    const contentStartMarker = 'class="mw-parser-output">';
-    const startIndex = html.indexOf(contentStartMarker);
-    
-    if (startIndex === -1) {
-      return { success: false, error: 'Could not find main content area in the page. The page structure might be unsupported.' };
+    if (data.error) {
+        return { success: false, error: `API Error: ${data.error.info}. Please check the page URL.` };
     }
 
-    let content = html.substring(startIndex + contentStartMarker.length);
-    
-    const contentEndMarker = '<!-- NewPP limit report';
-    const endIndex = content.indexOf(contentEndMarker);
-
-    if (endIndex !== -1) {
-      content = content.substring(0, endIndex);
-    } else {
-        // Fallback for different structures, e.g. finding the end of the parent div.
-        // This is very brittle and might not work on all pages.
-        let openDivs = 1;
-        let currentIndex = 0;
-        let searchContent = content;
-
-        while(openDivs > 0 && currentIndex < searchContent.length) {
-            const nextOpen = searchContent.indexOf('<div', currentIndex);
-            const nextClose = searchContent.indexOf('</div>', currentIndex);
-
-            if (nextClose === -1) break; // No more closing divs
-
-            if (nextOpen !== -1 && nextOpen < nextClose) {
-                openDivs++;
-                currentIndex = nextOpen + 1;
-            } else {
-                openDivs--;
-                currentIndex = nextClose + 1;
-            }
-
-            if (openDivs === 0) {
-              content = content.substring(0, currentIndex + 5);
-            }
-        }
+    if (!data.parse || !data.parse.text) {
+        return { success: false, error: 'Could not find content in the API response.' };
     }
-    
+
+    let content = data.parse.text;
+    const pageTitle = data.parse.title;
+
     // Handle lazy-loaded images from Fandom
-    content = content.replace(/<img[^>]*data-src="([^"]+)"[^>]*>/g, (match, dataSrc) => {
+    content = content.replace(/<img[^>]*data-src="([^"]+)"[^>]*>/g, (match: string, dataSrc: string) => {
         let newImgTag = match;
         // Replace src with data-src
         newImgTag = newImgTag.replace(/src="[^"]*"/, `src="${dataSrc}"`);
         // Remove lazyload class
-        newImgTag = newImgTag.replace(/\s*class="[^"]*lazyload[^"]*"/i, (classMatch) => {
+        newImgTag = newImgTag.replace(/\s*class="[^"]*lazyload[^"]*"/i, (classMatch: string) => {
             const newClass = classMatch.replace(/lazyload/i, '').replace(/\s{2,}/, ' ').trim();
-            return newClass === 'class=""' ? '' : ` ${newClass}`;
+            return newClass === 'class=""' ? '' : ` class="${newClass}"`;
         });
         // Remove data attributes
         newImgTag = newImgTag.replace(/data-src="[^"]*"/, '');
@@ -111,7 +73,7 @@ export async function getWikiContent(url: string): Promise<SuccessResponse | Err
     });
 
     // Make relative links absolute
-    const baseUrl = new URL(url).origin;
+    const baseUrl = parsedUrl.origin;
     content = content.replace(/(href|src)="\/(?!\/)/g, `$1="${baseUrl}/`);
 
     return { success: true, content, title: pageTitle };
