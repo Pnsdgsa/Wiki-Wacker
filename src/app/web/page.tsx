@@ -1,80 +1,96 @@
-import { Suspense } from 'react';
-import { getWikiContent } from '@/app/actions';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Loader2, ArrowLeft } from "lucide-react";
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+"use client";
 
-async function WikiContent({ url }: { url: string | undefined }) {
-  if (!url) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>No URL provided. Please go back and enter a URL.</AlertDescription>
-      </Alert>
-    );
-  }
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { getWikiContent } from "@/app/actions";
 
-  const result = await getWikiContent(url);
-
-  if (!result.success) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Extraction Failed</AlertTitle>
-        <AlertDescription>{result.error}</AlertDescription>
-      </Alert>
-    );
-  }
-
-  return (
-    <Card className="shadow-lg w-full mt-8 transition-opacity duration-500 animate-in fade-in-50">
-      <CardHeader>
-         <CardTitle className="text-3xl font-headline">{result.title || 'Extracted Content'}</CardTitle>
-         <CardDescription>
-           Content extracted from <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">{url}</a>
-         </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div
-          className="wiki-content"
-          dangerouslySetInnerHTML={{ __html: result.content }}
-        />
-      </CardContent>
-    </Card>
-  );
+// This will be a simple helper to create a full HTML document.
+function createFullHtmlPage(title: string, content: string): string {
+    // Basic styling for readability, as Fandom's CSS won't be present.
+    const styles = `
+        body { font-family: sans-serif; line-height: 1.6; padding: 2rem; max-width: 800px; margin: 0 auto; color: #333; }
+        img { max-width: 100%; height: auto; border-radius: 4px; }
+        a { color: #0066cc; }
+        h1, h2, h3 { border-bottom: 1px solid #eaeaea; padding-bottom: 0.3em; margin-top: 1.5em; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        th { background-color: #f2f2f2; }
+        .infobox { float: right; width: 250px; border: 1px solid #ccc; padding: 0.5rem; margin-left: 1rem; background: #f9f9f9; font-size: 0.9em; }
+    `;
+    return `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>${title}</title>
+            <style>${styles}</style>
+        </head>
+        <body>
+            <h1>${title}</h1>
+            <hr />
+            ${content}
+        </body>
+        </html>
+    `;
 }
 
-export default function WebPage({ searchParams }: { searchParams: { url?: string } }) {
-  const url = searchParams.url;
+export default function WebPage() {
+  const searchParams = useSearchParams();
+  const url = searchParams.get("url");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Using a flag to prevent double-execution in React 18 Strict Mode
+    let didRun = false;
+
+    async function processUrl() {
+      if (didRun || !url) return;
+      didRun = true;
+
+      try {
+        const result = await getWikiContent(url);
+        if (result.success) {
+          const fullHtml = createFullHtmlPage(result.title, result.content);
+          const blob = new Blob([fullHtml], { type: "text/html" });
+          const blobUrl = URL.createObjectURL(blob);
+          // Replace the current page with the blob content
+          window.location.replace(blobUrl);
+        } else {
+          setError(result.error);
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "An unexpected error occurred.");
+      }
+    }
+
+    processUrl();
+  }, [url]);
+
+  if (error) {
+    return (
+      <div style={{ padding: "2rem" }}>
+        <h1>Error</h1>
+        <p style={{ color: "red" }}>{error}</p>
+        <a href="/">Go Back</a>
+      </div>
+    );
+  }
+  
+  if (!url) {
+    return (
+        <div style={{ padding: "2rem" }}>
+            <h1>Error</h1>
+            <p>No URL provided.</p>
+            <a href="/">Go Back</a>
+        </div>
+    );
+  }
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-4 sm:p-8 md:p-12 bg-background font-body">
-      <div className="w-full max-w-4xl space-y-4">
-        <div className="flex items-center justify-between w-full">
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tighter text-foreground font-headline">
-              Wiki Viewer
-            </h1>
-            <Button asChild variant="outline">
-                <Link href="/">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Go Back
-                </Link>
-            </Button>
-        </div>
-        
-        <Suspense fallback={
-          <div className="flex flex-col justify-center items-center py-20 gap-4 text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="text-muted-foreground font-medium">Wacking the wiki... please wait...</p>
-          </div>
-        }>
-          {/* @ts-expect-error Server Component is fine here */}
-          <WikiContent url={url} />
-        </Suspense>
-      </div>
-    </main>
+    <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
+      <h1>Loading...</h1>
+      <p>Please wait while we extract the content.</p>
+    </div>
   );
 }
