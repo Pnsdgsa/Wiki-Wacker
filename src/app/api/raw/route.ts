@@ -43,9 +43,6 @@ export async function GET(req: NextRequest) {
         </style>
       </head>
       <body>
-        <h1>${result.title}</h1>
-        <p><em>Content extracted from ${url}</em></p>
-        <hr />
         ${result.content}
       </body>
       </html>
