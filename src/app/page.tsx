@@ -6,11 +6,9 @@ import { useState } from "react";
 export default function Home() {
   const router = useRouter();
   const [url, setUrl] = useState("https://growagarden.fandom.com/wiki/Crops");
-  const [loading, setLoading] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     router.push(`/web?url=${encodeURIComponent(url)}`);
   };
 
@@ -25,10 +23,9 @@ export default function Home() {
           onChange={(e) => setUrl(e.target.value)}
           placeholder="Enter Fandom URL"
           style={{ width: "400px", padding: "0.5rem", fontSize: '1rem' }}
-          disabled={loading}
         />
-        <button type="submit" disabled={loading} style={{ padding: "0.5rem 1rem", fontSize: '1rem' }}>
-          {loading ? "Redirecting..." : "Wack It!"}
+        <button type="submit" style={{ padding: "0.5rem 1rem", fontSize: '1rem' }}>
+          Wack It!
         </button>
       </form>
     </div>

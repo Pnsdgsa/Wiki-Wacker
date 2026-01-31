@@ -9,7 +9,6 @@ export default function WebPage() {
   const url = searchParams.get("url");
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // This object will hold the blob URL created in the current effect run.
@@ -18,11 +17,9 @@ export default function WebPage() {
     async function processUrl() {
       if (!url) {
         setError("No URL provided.");
-        setLoading(false);
         return;
       }
 
-      setLoading(true);
       setError(null);
       setBlobUrl(null);
 
@@ -69,8 +66,6 @@ export default function WebPage() {
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "An unexpected error occurred.");
-      } finally {
-        setLoading(false);
       }
     }
 
@@ -83,15 +78,6 @@ export default function WebPage() {
       }
     };
   }, [url]);
-
-  if (loading) {
-    return (
-      <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
-        <h1>Loading...</h1>
-        <p>Please wait while we extract the content.</p>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -110,9 +96,9 @@ export default function WebPage() {
   }
 
   return (
-      <div style={{ padding: "2rem" }}>
-          <h1>No content to display</h1>
-          <p>There was an issue loading the content or no URL was provided.</p>
+      <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
+          <h1>Processing...</h1>
+          <p>Attempting to extract content from the URL.</p>
           <a href="/">Go Back</a>
       </div>
   );
