@@ -3,11 +3,13 @@
 import { useState } from "react";
 
 export default function Home() {
-  const [url, setUrl] = useState("https://nextjs.org/");
+  const [url, setUrl] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    window.location.href = `/api/raw?url=${encodeURIComponent(url)}`;
+    if (url) {
+      window.location.href = `/api/raw?url=${encodeURIComponent(url)}`;
+    }
   };
 
   return (
