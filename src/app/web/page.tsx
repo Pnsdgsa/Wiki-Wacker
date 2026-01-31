@@ -95,11 +95,5 @@ export default function WebPage() {
     );
   }
 
-  return (
-      <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
-          <h1>Processing...</h1>
-          <p>Attempting to extract content from the URL.</p>
-          <a href="/">Go Back</a>
-      </div>
-  );
+  return null;
 }
